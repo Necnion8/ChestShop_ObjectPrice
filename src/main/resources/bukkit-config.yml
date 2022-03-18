@@ -1,0 +1,8 @@
+debug: false
+save-delay: 15
+total-balance-delay: 30
+bankbox-chest-location: null
+jecon-sync-account:
+  uuid: null
+  objects: null
+  expression: null

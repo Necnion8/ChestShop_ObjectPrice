@@ -1,0 +1,62 @@
+import org.apache.tools.ant.filters.ReplaceTokens
+
+plugins {
+    id 'java'
+}
+
+group = 'com.gmail.necnionch.myplugin'
+version = '1.1.0'
+
+sourceCompatibility = '1.8'
+targetCompatibility = '1.8'
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'spigotmc-repo'
+        url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/'
+    }
+    maven {
+        name = 'sonatype'
+        url = 'https://oss.sonatype.org/content/groups/public/'
+    }
+}
+
+dependencies {
+    implementation 'org.jetbrains:annotations:15.0'
+
+    compileOnly 'org.spigotmc:spigot-api:1.13-R0.1-SNAPSHOT'
+    implementation files("libs/ChestShop.jar")
+//    implementation files("libs/CSRndPrice-1.0.2.jar")
+    implementation files("libs/BankBox-1.0.1.jar")
+    implementation files("libs/Jecon-2.2.0.jar")
+    implementation files("libs/GroupBank-1.1.0.jar")
+
+    compile "net.objecthunter:exp4j:0.4.8"
+
+}
+
+processResources {
+    from(sourceSets.main.resources.srcDirs) {
+        filter ReplaceTokens, tokens: [version: version]
+    }
+}
+
+jar {
+    from {
+        configurations.compile.collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+
+    into("source") {
+        from "src/main/java"
+    }
+}
+compileJava.options.encoding = 'UTF-8'
+
+build.doLast {
+    exec {
+        commandLine "D:\\Program Files 2\\mcrcon.exe", "-p", "pass", "plugman reload CSObjPrice", "say Reloaded!"
+    }
+}

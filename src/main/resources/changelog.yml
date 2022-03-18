@@ -1,0 +1,8 @@
+versions:
+  "1.0.0-snapshot": |-
+    Release: 2021/05/14
+  "1.1.0": |-
+    21/05/17
+    ・全残高(Jecon/GroupBank)の取得 dyn_balance_total / dyn_jecon_balance_total / dyn_groupbank_balance_total
+    ・特定のプレイヤーの残高に代入 /csop syncplayerbalance (player) (expression)
+    ・チェスト内のBankBox Itemをカウント /csop setbankbox & click chest -> dyn_bankbox_items

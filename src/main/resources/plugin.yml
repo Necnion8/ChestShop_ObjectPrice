@@ -1,0 +1,100 @@
+name: CSObjPrice
+version: @version@
+main: com.gmail.necnionch.myplugin.csobjprice.bukkit.ObjectPricePlugin
+api-version: 1.13
+depend: [ChestShop]
+softdepend: [Jecon, BankBox, GroupBank]  # , CSRndPrice]
+authors: [Necnion8]
+
+commands:
+  "csobjprice":
+    aliases: ["csop", "chestshopobjectprice", "objectprice", "shopprice"]
+    usage: |
+      §f[オブジェクト]
+        §c/csop addobj §7(§fobjectName§7) §e- §7オブジェクトを作成
+        §c/csop removeobj §7(§fobjectName§7) §7<force> §e- §7オブジェクトを削除
+        §c/csop listobj §e- §7オブジェクト一覧
+        §c/csop infoobj §7(§fobjectName§7) §e- §7オブジェクト情報を表示
+        §c/csop setvalue §7(§fobjectName§7) §7(§fvalue§7) §e- §7オブジェクトに値を設定
+        §c/csop addobjmember §7(§fobjectName§7) §7(§fplayer§7) §e- §7プレイヤーの値編集を許可
+        §c/csop removeobjmember §7(§fobjectName§7) §7(§fplayer§7) §e- §7プレイヤーの値編集の許可削除
+      §f[ショップ価格設定]
+        §c/csop setprice §7(§fexpression§7) §e- §7ショップ看板に価格計算式を設定
+        §c/csop setbuyprice §7(§fexpression§7) §e- §7ショップ看板にBuy価格計算式を設定
+        §c/csop setsellprice §7(§fexpression§7) §e- §7ショップ看板にSell価格計算式を設定
+        §c/csop checkprice §e- §7ショップ看板に設定されている価格を表示
+        §c/csop test §7(§fexpression§7) §e- §7式を計算し、表示
+      §f[その他]
+        §c/csop syncplayerbalance §7(§fplayer§7) (§fexpression§7) §e- §7指定プレイヤーの残高を設定 (同期的)
+        §c/csop setbankbox §e- §7BankBoxチェストを設定
+        §c/csop reload §e- §7設定ファイルの再読み込み
+
+permissions:
+  chestshopobjectprice.command.addobj: {}
+  chestshopobjectprice.command.removeobj: {}
+  chestshopobjectprice.command.infoobj: {}
+  chestshopobjectprice.command.listobj: {}
+  chestshopobjectprice.command.setvalue: {}
+  chestshopobjectprice.command.checkprice: {}
+  chestshopobjectprice.command.setprice:
+    description: "ショップ看板にオブジェクト計算式を埋め込む"
+  chestshopobjectprice.command.setbuyprice:
+    description: "ショップ看板にオブジェクト計算式を埋め込む"
+  chestshopobjectprice.command.setsellprice:
+    description: "ショップ看板にオブジェクト計算式を埋め込む"
+  chestshopobjectprice.command.test: {}
+  chestshopobjectprice.command.addobjmember: {}
+  chestshopobjectprice.command.removeobjmember: {}
+  chestshopobjectprice.command.syncplayerbalance: {}
+  chestshopobjectprice.command.setbankbox: {}
+  chestshopobjectprice.command.reload: {}
+
+  chestshopobjectprice.bypass.changevalue:
+    description: "作成者関係なくオブジェクトの値を変更可能にする権限"
+  chestshopobjectprice.bypass.manageobject:
+    description: "作成者関係なくオブジェクト操作を可能にする権限"
+
+
+  chestshopobjectprice.default:
+    default: true
+    children:
+      - chestshopobjectprice.command.checkprice
+      - chestshopobjectprice.command.setprice
+      - chestshopobjectprice.command.setbuyprice
+      - chestshopobjectprice.command.setsellprice
+      - chestshopobjectprice.command.test
+
+  chestshopobjectprice.editor:
+    default: false
+    children:
+      - chestshopobjectprice.command.checkprice
+      - chestshopobjectprice.command.setprice
+      - chestshopobjectprice.command.setbuyprice
+      - chestshopobjectprice.command.setsellprice
+      - chestshopobjectprice.command.test
+      - chestshopobjectprice.command.addobj
+      - chestshopobjectprice.command.removeobj
+      - chestshopobjectprice.command.infoobj
+      - chestshopobjectprice.command.setvalue
+      - chestshopobjectprice.command.addobjmember
+      - chestshopobjectprice.command.removeobjmember
+
+  chestshopobjectprice.admin:
+    default: op
+    children:
+      - chestshopobjectprice.command.checkprice
+      - chestshopobjectprice.command.setprice
+      - chestshopobjectprice.command.setbuyprice
+      - chestshopobjectprice.command.setsellprice
+      - chestshopobjectprice.command.test
+      - chestshopobjectprice.command.addobj
+      - chestshopobjectprice.command.removeobj
+      - chestshopobjectprice.command.infoobj
+      - chestshopobjectprice.command.setvalue
+      - chestshopobjectprice.command.addobjmember
+      - chestshopobjectprice.command.removeobjmember
+      - chestshopobjectprice.bypass.changevalue
+      - chestshopobjectprice.bypass.manageobject
+      - chestshopobjectprice.command.syncplayerbalance
+      - chestshopobjectprice.command.setbankbox
+      - chestshopobjectprice.command.reload
