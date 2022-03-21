@@ -1,11 +1,12 @@
 package com.gmail.necnionch.myplugin.csobjprice.bukkit;
 
-import com.Acrobot.ChestShop.Events.TransactionEvent;
 import com.gmail.necnionch.myplugin.csobjprice.bukkit.commands.MainCommand;
 import com.gmail.necnionch.myplugin.csobjprice.bukkit.entry.ObjectPrice;
+import com.gmail.necnionch.myplugin.csobjprice.bukkit.entry.PriceValue;
 import com.gmail.necnionch.myplugin.csobjprice.bukkit.events.PriceObjectChangeValueEvent;
 import com.gmail.necnionch.myplugin.csobjprice.bukkit.hooks.*;
 import com.gmail.necnionch.myplugin.csobjprice.bukkit.listeners.BlockEventListener;
+import com.gmail.necnionch.myplugin.csobjprice.bukkit.listeners.ContainerEventListener;
 import com.gmail.necnionch.myplugin.csobjprice.bukkit.listeners.WorldEventListener;
 import com.gmail.necnionch.myplugin.csobjprice.common.ObjectPriceName;
 import com.gmail.necnionch.myplugin.csobjprice.common.Utils;
@@ -71,8 +72,8 @@ public final class ObjectPricePlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getPluginManager().registerEvents(new WorldEventListener(shopManager), this);
         getServer().getPluginManager().registerEvents(new BlockEventListener(shopManager), this);
+        getServer().getPluginManager().registerEvents(new ContainerEventListener(), this);
         getServer().getPluginManager().registerEvents(sessionManager, this);
-
 
         getServer().getScheduler().scheduleSyncDelayedTask(this, () -> {
             updateTotalBalance();
@@ -197,40 +198,46 @@ public final class ObjectPricePlugin extends JavaPlugin implements Listener {
     public void updateTotalBalance() {
         debug("update total balance");
 
-        long jeconTotal = 0;
-        try {
-            jeconTotal = (long) jeconHook.getBalanceTotal(500);
-        } catch (Throwable th) {
-            th.printStackTrace();
+        long total = 0;
+        if (jeconHook.isHooked()) {
+            try {
+                long jeconTotal = (long) jeconHook.getBalanceTotal(500);
+                total += Math.max(0, jeconTotal);
+
+                PriceValue price = priceManager.get(ObjectPriceName.JECON_BALANCE_TOTAL);
+                if (price == null) {
+                    price = new ObjectPrice(ObjectPriceName.JECON_BALANCE_TOTAL, null);
+                    priceManager.add(price);
+                }
+                ((ObjectPrice) price).setValue(jeconTotal);
+            } catch (Throwable th) {
+                th.printStackTrace();
+            }
         }
 
-        long gBankTotal = 0;
-        try {
-            gBankTotal = Stream.of(groupBankHook.getAccounts()).mapToLong(BankAccount::getBalance).sum();
-        } catch (Throwable th) {
-            th.printStackTrace();
+        if (getBankBoxHook().isHooked()) {
+            try {
+                long bankTotal = Stream.of(groupBankHook.getAccounts()).mapToLong(BankAccount::getBalance).sum();
+                total += Math.max(0, bankTotal);
+
+                PriceValue price = priceManager.get(ObjectPriceName.GROUP_BANK_BALANCE_TOTAL);
+                if (price == null) {
+                    price = new ObjectPrice(ObjectPriceName.GROUP_BANK_BALANCE_TOTAL, null);
+                    priceManager.add(price);
+                }
+                ((ObjectPrice) price).setValue(bankTotal);
+            } catch (Throwable th) {
+                th.printStackTrace();
+            }
         }
 
-        ObjectPrice price = priceManager.get(ObjectPriceName.BALANCE_TOTAL);
+        PriceValue price = priceManager.get(ObjectPriceName.BALANCE_TOTAL);
         if (price == null) {
             price = new ObjectPrice(ObjectPriceName.BALANCE_TOTAL, null);
             priceManager.add(price);
         }
-        price.setValue(jeconTotal + gBankTotal);
+        ((ObjectPrice) price).setValue(total);
 
-        price = priceManager.get(ObjectPriceName.JECON_BALANCE_TOTAL);
-        if (price == null) {
-            price = new ObjectPrice(ObjectPriceName.JECON_BALANCE_TOTAL, null);
-            priceManager.add(price);
-        }
-        price.setValue(jeconTotal);
-
-        price = priceManager.get(ObjectPriceName.GROUP_BANK_BALANCE_TOTAL);
-        if (price == null) {
-            price = new ObjectPrice(ObjectPriceName.GROUP_BANK_BALANCE_TOTAL, null);
-            priceManager.add(price);
-        }
-        price.setValue(gBankTotal);
     }
 
     public void updateJeconSyncAccountBalance() {
@@ -272,12 +279,12 @@ public final class ObjectPricePlugin extends JavaPlugin implements Listener {
                 count += is.getAmount();
             }
         }
-        ObjectPrice price = priceManager.get(ObjectPriceName.BANKBOX_ITEMS);
+        PriceValue price = priceManager.get(ObjectPriceName.BANKBOX_ITEMS);
         if (price == null) {
             price = new ObjectPrice(ObjectPriceName.BANKBOX_ITEMS, null);
             priceManager.add(price);
         }
-        price.setValue(Math.max(0, count + extra));
+        ((ObjectPrice) price).setValue(Math.max(0, count + extra));
     }
 
 

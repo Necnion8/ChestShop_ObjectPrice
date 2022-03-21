@@ -2,6 +2,7 @@ package com.gmail.necnionch.myplugin.csobjprice.bukkit.entry;
 
 import com.gmail.necnionch.myplugin.csobjprice.bukkit.ObjectPricePlugin;
 import com.gmail.necnionch.myplugin.csobjprice.common.Perms;
+import org.bukkit.block.Sign;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.permissions.Permissible;
@@ -11,12 +12,14 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.stream.Collectors;
 
+// TODO: コマンドで登録できるObjectPriceと、PriceValueインターフェースを整理する
 
-public class ObjectPrice {
+
+public class ObjectPrice extends PriceValue {
     private final String name;
     private double value;
     private @Nullable UUID owner;
-    private @NotNull Set<UUID> editors;
+    private final @NotNull Set<UUID> editors;
 
 
     public ObjectPrice(@NotNull String name, @Nullable UUID owner) {
@@ -63,8 +66,19 @@ public class ObjectPrice {
         return name;
     }
 
+    @Deprecated
     public double getValue() {
         return value;
+    }
+
+    @Override
+    public double getValue(ObjectPriceShop shop) {
+        return value;
+    }
+
+    @Override
+    public boolean available(ObjectPriceShop shop, Sign sign) {
+        return true;
     }
 
     @Nullable
@@ -83,12 +97,12 @@ public class ObjectPrice {
         ObjectPricePlugin.getShops().updateSigns(this);
     }
 
-    public void setValueSilentEvent(double value) {
-        this.value = value;
-        ObjectPricePlugin.getPrices().update(this);
-        ObjectPricePlugin.getPrices().updateValue(this, null);
-        ObjectPricePlugin.getShops().updateSigns(this);
-    }
+//    public void setValueSilentEvent(double value) {
+//        this.value = value;
+//        ObjectPricePlugin.getPrices().save(this);
+//        ObjectPricePlugin.getPrices().updateValue(this, null);
+//        ObjectPricePlugin.getShops().updateSigns(this);
+//    }
 
     public boolean isEditor(UUID uuid) {
         return editors.contains(uuid);
@@ -96,7 +110,7 @@ public class ObjectPrice {
 
     public boolean addEditor(UUID uuid) {
         if (editors.add(uuid)) {
-            ObjectPricePlugin.getPrices().update(this);
+            ObjectPricePlugin.getPrices().save(this);
             return true;
         }
         return false;
@@ -104,7 +118,7 @@ public class ObjectPrice {
 
     public boolean removeEditor(UUID uuid) {
         if (editors.remove(uuid)) {
-            ObjectPricePlugin.getPrices().update(this);
+            ObjectPricePlugin.getPrices().save(this);
             return true;
         }
         return false;
@@ -135,10 +149,5 @@ public class ObjectPrice {
 
     public static boolean checkNaming(String name) {
         return name.matches("^[a-zA-Z_]\\w*$") && !name.startsWith("dyn_");
-    }
-
-
-    public enum Action {
-        CHANGE_VALUE, REMOVE_OBJECT, VIEW_INFO, ADD_EDITOR, REMOVE_EDITOR, USE,
     }
 }

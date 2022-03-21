@@ -4,6 +4,7 @@ import com.Acrobot.Breeze.Utils.PriceUtil;
 import com.Acrobot.ChestShop.Signs.ChestShopSign;
 import net.objecthunter.exp4j.Expression;
 import net.objecthunter.exp4j.ExpressionBuilder;
+import net.objecthunter.exp4j.function.Function;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
@@ -81,7 +82,7 @@ public class Utils {
         if (price == 0)
             return PriceUtil.FREE_TEXT;
 
-        String tmp = String.valueOf(price);
+        String tmp = String.valueOf(Math.round(price * 100) / 100d);
         if (tmp.endsWith(".0"))
             tmp = tmp.substring(0, tmp.length() - 2);
         return tmp;
@@ -89,13 +90,29 @@ public class Utils {
 
 
     public static double evalPriceExpression(String expression, Map<String, Double> prices) {
-        Expression exp = new ExpressionBuilder(expression)
-                .variables(prices.keySet())
-                .build()  // throws
-                .setVariables(prices);
-        return exp.evaluate();
+        return buildPriceExpression(expression, prices).evaluate();
     }
 
+    public static Expression buildPriceExpression(String expression, Map<String, Double> prices) {
+        return new ExpressionBuilder(expression)
+                .variables(prices.keySet())
+                .functions(EXPRESSION_FUNCTIONS)
+                .build()  // throws
+                .setVariables(prices);
+    }
+
+    private static final Function[] EXPRESSION_FUNCTIONS = {
+            new Function("min", 2) {
+                public double apply(double... args) {
+                    return Math.min(args[0], args[1]);
+                }
+            },
+            new Function("max", 2) {
+                public double apply(double... args) {
+                    return Math.max(args[0], args[1]);
+                }
+            }
+    };
 
 }
 

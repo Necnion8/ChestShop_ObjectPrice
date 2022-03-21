@@ -8,12 +8,12 @@ import com.gmail.necnionch.myplugin.csobjprice.bukkit.ObjectShopManager;
 import com.gmail.necnionch.myplugin.csobjprice.bukkit.PlayerSessionManager;
 import com.gmail.necnionch.myplugin.csobjprice.bukkit.entry.ObjectPrice;
 import com.gmail.necnionch.myplugin.csobjprice.bukkit.entry.ObjectPriceShop;
+import com.gmail.necnionch.myplugin.csobjprice.bukkit.entry.PriceValue;
 import com.gmail.necnionch.myplugin.csobjprice.common.Utils;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.chat.ComponentBuilder;
 import net.objecthunter.exp4j.Expression;
-import net.objecthunter.exp4j.ExpressionBuilder;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -27,7 +27,6 @@ import org.jetbrains.annotations.Nullable;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 
 public class MainCommand {
@@ -63,7 +62,7 @@ public class MainCommand {
 
     // parsers
 
-    private ObjectPrice parseObjectPrice(CommandSender s, String[] args) {
+    private PriceValue parseObjectPrice(CommandSender s, String[] args) {
         String objectName;
         try {
             objectName = args[0];
@@ -73,7 +72,7 @@ public class MainCommand {
             return null;
         }
 
-        ObjectPrice objectPrice = priceManager.get(objectName);
+        PriceValue objectPrice = priceManager.get(objectName);
         if (objectPrice == null) {
             pl.send(s, "&cそのオブジェクトはありません。");
             return null;
@@ -119,7 +118,7 @@ public class MainCommand {
     }
 
     private boolean cmdRemoveObj(CommandSender s, Command cmd, String l, String[] args) {
-        ObjectPrice objectPrice = parseObjectPrice(s, args);
+        PriceValue objectPrice = parseObjectPrice(s, args);
         if (objectPrice == null)
             return true;
 
@@ -143,7 +142,7 @@ public class MainCommand {
     }
 
     private boolean cmdInfoObj(CommandSender s, Command cmd, String l, String[] args) {
-        ObjectPrice objectPrice = parseObjectPrice(s, args);
+        PriceValue objectPrice = parseObjectPrice(s, args);
         if (objectPrice == null)
             return true;
 
@@ -160,18 +159,28 @@ public class MainCommand {
         };
 
         List<String> editors = new ArrayList<>();
-        for (UUID editor : objectPrice.getEditors()) {
-            editors.add(nameFinder.apply(editor));
+        UUID objOwner = null;
+        if (objectPrice instanceof ObjectPrice) {
+            objOwner = ((ObjectPrice) objectPrice).getOwner();
+            for (UUID editor : ((ObjectPrice) objectPrice).getEditors()) {
+                editors.add(nameFinder.apply(editor));
+            }
         }
 
         ObjectPriceShop[] shops = shopManager.getShops(objectPrice);
 
         pl.send(s, "&eオブジェクト情報");
-        s.sendMessage(ChatColor.translateAlternateColorCodes('&',
-                "  値: &e" + objectPrice.getValue() + " &7(利用数: " + shops.length + ")"));
-        if (objectPrice.getOwner() != null) {
+
+        if (objectPrice instanceof ObjectPrice) {
             s.sendMessage(ChatColor.translateAlternateColorCodes('&',
-                    "  作成者: &e" + nameFinder.apply(objectPrice.getOwner())));
+                    "  値: &e" + ((ObjectPrice) objectPrice).getValue() + " &7(利用数: " + shops.length + ")"));
+        } else {
+            s.sendMessage(ChatColor.translateAlternateColorCodes('&', "  利用数: " + shops.length));
+        }
+
+        if (objOwner != null) {
+            s.sendMessage(ChatColor.translateAlternateColorCodes('&',
+                    "  作成者: &e" + nameFinder.apply(objOwner)));
         }
         if (!editors.isEmpty()) {
             s.sendMessage(ChatColor.translateAlternateColorCodes('&',
@@ -186,14 +195,15 @@ public class MainCommand {
     }
 
     private boolean cmdSetValue(CommandSender s, Command cmd, String l, String[] args) {
-        ObjectPrice objectPrice = parseObjectPrice(s, args);
-        if (objectPrice == null)
+        PriceValue priceValue = parseObjectPrice(s, args);
+        if (priceValue == null)
             return true;
 
-        if (!objectPrice.allow(ObjectPrice.Action.CHANGE_VALUE, s)) {
+        if (!priceValue.allow(ObjectPrice.Action.CHANGE_VALUE, s) || !(priceValue instanceof ObjectPrice)) {
             pl.send(s, "&cこのオブジェクトの変更は許可されていません。");
             return true;
         }
+        ObjectPrice objectPrice = (ObjectPrice) priceValue;
 
         double value;
         try {
@@ -220,10 +230,7 @@ public class MainCommand {
         String[] objects;
         double testValue;
         try {
-            Expression exp = new ExpressionBuilder(expression)
-                    .variables(priceManager.getNames())
-                    .build()
-                    .setVariables(priceManager.getValues());
+            Expression exp = Utils.buildPriceExpression(expression, priceManager.getValues());
 
             testValue = exp.evaluate();
             objects = exp.getVariableNames().toArray(new String[0]);
@@ -257,7 +264,7 @@ public class MainCommand {
             } else if (objects.length <= 0) {  // 結局、変数を使ってない。
                 shopManager.remove(block);
                 Utils.setPriceLine((Sign) block.getState(), testValue, testValue);
-                pl.send(s, "&c設定しました！");
+                pl.send(s, "&a設定しました！");
 
             } else {
                 ObjectPriceShop shop = shopManager.get(block.getLocation());
@@ -270,7 +277,7 @@ public class MainCommand {
                     shopManager.add(shop, true);
                 }
 
-                shop.updateSign(priceManager.getValues());
+                shop.updateSign(priceManager.getValues(shop));
                 pl.send(s, "&a設定しました！");
             }
 
@@ -320,7 +327,7 @@ public class MainCommand {
                 if (buyExpression != null) {
                     String resultText;
                     try {
-                        resultText = String.valueOf(Utils.evalPriceExpression(buyExpression, ObjectPricePlugin.getPrices().getValues()));
+                        resultText = String.valueOf(Utils.evalPriceExpression(buyExpression, ObjectPricePlugin.getPrices().getValues(objectShop)));
                     } catch (Throwable th) {
                         resultText = "&4エラー";
                     }
@@ -335,7 +342,7 @@ public class MainCommand {
                 if (sellExpression != null) {
                     String resultText;
                     try {
-                        resultText = String.valueOf(Utils.evalPriceExpression(sellExpression, ObjectPricePlugin.getPrices().getValues()));
+                        resultText = String.valueOf(Utils.evalPriceExpression(sellExpression, ObjectPricePlugin.getPrices().getValues(objectShop)));
                     } catch (Throwable th) {
                         resultText = "&4エラー";
                     }
@@ -365,10 +372,7 @@ public class MainCommand {
         String[] objects;
         double testValue;
         try {
-            Expression exp = new ExpressionBuilder(expression)
-                    .variables(priceManager.getNames())
-                    .build()
-                    .setVariables(priceManager.getValues());
+            Expression exp = Utils.buildPriceExpression(expression, priceManager.getValues());
 
             testValue = exp.evaluate();
             objects = exp.getVariableNames().toArray(new String[0]);
@@ -401,7 +405,7 @@ public class MainCommand {
             } else if (objects.length <= 0) {  // 結局、変数を使ってない。
                 shopManager.remove(block);
                 Utils.setPriceLine((Sign) block.getState(), testValue, null);
-                pl.send(s, "&c設定しました！");
+                pl.send(s, "&a設定しました！");
 
             } else {
                 ObjectPriceShop shop = shopManager.get(block.getLocation());
@@ -413,7 +417,7 @@ public class MainCommand {
                     shopManager.add(shop, true);
                 }
 
-                shop.updateSign(priceManager.getValues());
+                shop.updateSign(priceManager.getValues(shop));
                 pl.send(s, "&a設定しました！");
             }
 
@@ -434,10 +438,7 @@ public class MainCommand {
         String[] objects;
         double testValue;
         try {
-            Expression exp = new ExpressionBuilder(expression)
-                    .variables(priceManager.getNames())
-                    .build()
-                    .setVariables(priceManager.getValues());
+            Expression exp = Utils.buildPriceExpression(expression, priceManager.getValues());
 
             testValue = exp.evaluate();
             objects = exp.getVariableNames().toArray(new String[0]);
@@ -470,7 +471,7 @@ public class MainCommand {
             } else if (objects.length <= 0) {  // 結局、変数を使ってない。
                 shopManager.remove(block);
                 Utils.setPriceLine((Sign) block.getState(), null, testValue);
-                pl.send(s, "&c設定しました！");
+                pl.send(s, "&a設定しました！");
 
             } else {
                 ObjectPriceShop shop = shopManager.get(block.getLocation());
@@ -482,7 +483,7 @@ public class MainCommand {
                     shopManager.add(shop, true);
                 }
 
-                shop.updateSign(priceManager.getValues());
+                shop.updateSign(priceManager.getValues(shop));
                 pl.send(s, "&a設定しました！");
             }
 
@@ -500,12 +501,7 @@ public class MainCommand {
         String expression = String.join(" ", args);
         double testValue;
         try {
-            Expression exp = new ExpressionBuilder(expression)
-                    .variables(priceManager.getNames())
-                    .build()
-                    .setVariables(priceManager.getValues());
-
-            testValue = exp.evaluate();
+            testValue = Utils.evalPriceExpression(expression, priceManager.getValues());
 
         } catch (Exception e) {
             pl.send(s, "&cテストに失敗しました: ");
@@ -519,13 +515,18 @@ public class MainCommand {
     }
 
     private boolean cmdAddMember(CommandSender s, Command cmd, String l, String[] args) {
-        ObjectPrice objectPrice = parseObjectPrice(s, args);
-        if (objectPrice == null)
+        PriceValue priceValue = parseObjectPrice(s, args);
+        if (priceValue == null)
             return true;
 
-        if (!objectPrice.allow(ObjectPrice.Action.ADD_EDITOR, s)) {
+        if (!priceValue.allow(ObjectPrice.Action.ADD_EDITOR, s)) {
 //        if (objectPrice.getOwner() != null && (s instanceof Player) && !((Player) s).getUniqueId().equals(objectPrice.getOwner())) {
             pl.send(s, "&c許可がありません。");
+            return true;
+        }
+
+        if (!(priceValue instanceof ObjectPrice)) {
+            pl.send(s, "&cこのオブジェクトはメンバーを持ちません。");
             return true;
         }
 
@@ -533,6 +534,8 @@ public class MainCommand {
             pl.send(s, "&c値の変更を許可するプレイヤーを指定してください。");
             return true;
         }
+
+        ObjectPrice objectPrice = (ObjectPrice) priceValue;
 
         UUID uuid = null;
         String name;
@@ -563,13 +566,18 @@ public class MainCommand {
     }
 
     private boolean cmdRemoveMember(CommandSender s, Command cmd, String l, String[] args) {
-        ObjectPrice objectPrice = parseObjectPrice(s, args);
-        if (objectPrice == null)
+        PriceValue priceValue = parseObjectPrice(s, args);
+        if (priceValue == null)
             return true;
 
-        if (!objectPrice.allow(ObjectPrice.Action.REMOVE_EDITOR, s)) {
+        if (!priceValue.allow(ObjectPrice.Action.REMOVE_EDITOR, s)) {
 //        if (objectPrice.getOwner() != null && (s instanceof Player) && !((Player) s).getUniqueId().equals(objectPrice.getOwner())) {
             pl.send(s, "&c許可がありません。");
+            return true;
+        }
+
+        if (!(priceValue instanceof ObjectPrice)) {
+            pl.send(s, "&cこのオブジェクトはメンバーを持ちません。");
             return true;
         }
 
@@ -577,6 +585,8 @@ public class MainCommand {
             pl.send(s, "&c値の変更を許可しないプレイヤーを指定してください。");
             return true;
         }
+
+        ObjectPrice objectPrice = (ObjectPrice) priceValue;
 
         UUID uuid = null;
         String name;
@@ -630,10 +640,7 @@ public class MainCommand {
         String[] objects;
 
         try {
-            Expression exp = new ExpressionBuilder(expression)
-                    .variables(priceManager.getNames())
-                    .build()
-                    .setVariables(priceManager.getValues());
+            Expression exp = Utils.buildPriceExpression(expression, priceManager.getValues());
 
             exp.evaluate();
             objects = exp.getVariableNames().toArray(new String[0]);
@@ -715,14 +722,11 @@ public class MainCommand {
         if (args.length == 1)
             return genObjects(s, cmd, l, args);
 
-        ObjectPrice objectPrice = priceManager.get(args[0]);
-        if (objectPrice == null)
+        PriceValue priceValue = priceManager.get(args[0]);
+        if (!(priceValue instanceof ObjectPrice) || !priceValue.allow(PriceValue.Action.ADD_EDITOR, s))
             return Collections.emptyList();
 
-//        if (objectPrice.getOwner() != null && (s instanceof Player) && !((Player) s).getUniqueId().equals(objectPrice.getOwner()))
-        if (!objectPrice.allow(ObjectPrice.Action.ADD_EDITOR, s))
-            return Collections.emptyList();
-
+        ObjectPrice objectPrice = (ObjectPrice) priceValue;
 
         return Utils.generateSuggests(args[1], Bukkit.getOnlinePlayers().stream()
                 .filter(p -> !objectPrice.isEditor(p.getUniqueId()))
@@ -735,14 +739,11 @@ public class MainCommand {
         if (args.length == 1)
             return genObjects(s, cmd, l, args);
 
-        ObjectPrice objectPrice = priceManager.get(args[0]);
-        if (objectPrice == null)
+        PriceValue priceValue = priceManager.get(args[0]);
+        if (!(priceValue instanceof ObjectPrice) || !priceValue.allow(PriceValue.Action.REMOVE_EDITOR, s))
             return Collections.emptyList();
 
-
-//        if (objectPrice.getOwner() != null && (s instanceof Player) && !((Player) s).getUniqueId().equals(objectPrice.getOwner()))
-        if (!objectPrice.allow(ObjectPrice.Action.REMOVE_EDITOR, s))
-            return Collections.emptyList();
+        ObjectPrice objectPrice = (ObjectPrice) priceValue;
 
         Set<String> suggests = new HashSet<>();
         String playerName;

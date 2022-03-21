@@ -1,6 +1,5 @@
 package com.gmail.necnionch.myplugin.csobjprice.common;
 
-import com.gmail.necnionch.myplugin.csobjprice.bukkit.ObjectPricePlugin;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
 

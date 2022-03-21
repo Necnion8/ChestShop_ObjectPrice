@@ -1,7 +1,8 @@
 package com.gmail.necnionch.myplugin.csobjprice.bukkit;
 
-import com.gmail.necnionch.myplugin.csobjprice.bukkit.entry.ObjectPrice;
+import com.gmail.necnionch.myplugin.csobjprice.bukkit.entry.CalculationError;
 import com.gmail.necnionch.myplugin.csobjprice.bukkit.entry.ObjectPriceShop;
+import com.gmail.necnionch.myplugin.csobjprice.bukkit.entry.PriceValue;
 import com.gmail.necnionch.myplugin.csobjprice.common.BukkitConfigDriver;
 import com.gmail.necnionch.myplugin.csobjprice.common.ScheduleConfigSaver;
 import com.google.common.collect.LinkedHashMultimap;
@@ -17,6 +18,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.logging.Level;
 
 import static com.gmail.necnionch.myplugin.csobjprice.bukkit.ObjectPricePlugin.debug;
 import static com.gmail.necnionch.myplugin.csobjprice.bukkit.ObjectPricePlugin.getPrices;
@@ -129,9 +131,9 @@ public class ObjectShopManager extends BukkitConfigDriver {
     }
 
 
-    public ObjectPriceShop[] getShops(ObjectPrice objectPrice) {
+    public ObjectPriceShop[] getShops(PriceValue priceValue) {
         return shopOfLocation.values().stream()
-                .filter(shop -> shop.isRequireObject(objectPrice.getName()))
+                .filter(shop -> shop.isRequireObject(priceValue.getName()))
                 .toArray(ObjectPriceShop[]::new);
     }
 
@@ -141,40 +143,50 @@ public class ObjectShopManager extends BukkitConfigDriver {
         int all = 0, success = 0;
         long delay = System.currentTimeMillis();
 
-        Map<String, Double> prices = getPrices().getValues();
         for (ObjectPriceShop shop : getShopAll()) {
             all++;
             try {
+                Map<String, Double> prices = getPrices().getValues(shop);
+
                 if (shop.updateSign(prices))
                     success++;
 
-            } catch (Exception e) {
+            } catch (CalculationError | RuntimeException e) {
                 getLogger().warning(String.format("Shop sign(%s,%d,%d,%d) updating fail: %s",
                         shop.getWorldName(), shop.getX(), shop.getY(), shop.getZ(), e.getMessage()));
+
+            } catch (Throwable e) {
+                getLogger().log(Level.SEVERE, String.format("Shop sign(%s,%d,%d,%d) updating fail: %s",
+                        shop.getWorldName(), shop.getX(), shop.getY(), shop.getZ(), e.getMessage()), e);
             }
         }
         delay = System.currentTimeMillis() - delay;
         debug("updateSigns result > success=%d (all: %d) processTime=%dms", success, all, delay);
     }
 
-    public void updateSigns(ObjectPrice objectPrice) {
-        debug("updateSigns object='%s'", objectPrice.getName());
+    public void updateSigns(PriceValue priceValue) {
+        debug("updateSigns object='%s'", priceValue.getName());
         int all = 0, success = 0;
         long delay = System.currentTimeMillis();
 
-        Map<String, Double> prices = getPrices().getValues();
         for (ObjectPriceShop shop : getShopAll()) {
-            if (!shop.isRequireObject(objectPrice.getName()))
+            if (!shop.isRequireObject(priceValue.getName()))
                 continue;
 
             all++;
             try {
+                Map<String, Double> prices = getPrices().getValues(shop);
+
                 if (shop.updateSign(prices))
                     success++;
 
-            } catch (Exception e) {
+            } catch (CalculationError | RuntimeException e) {
                 getLogger().warning(String.format("Shop sign(%s,%d,%d,%d) updating fail: %s",
                         shop.getWorldName(), shop.getX(), shop.getY(), shop.getZ(), e.getMessage()));
+
+            } catch (Throwable e) {
+                getLogger().log(Level.SEVERE, String.format("Shop sign(%s,%d,%d,%d) updating fail: %s",
+                        shop.getWorldName(), shop.getX(), shop.getY(), shop.getZ(), e.getMessage()), e);
             }
         }
         delay = System.currentTimeMillis() - delay;
@@ -209,6 +221,20 @@ public class ObjectShopManager extends BukkitConfigDriver {
         debug("updateSigns result > success=%d (all: %d) processTime=%dms", success, all, delay);
     }
 
+    public void updateSigns(ObjectPriceShop shop) {
+        try {
+            Map<String, Double> prices = getPrices().getValues(shop);
+            shop.updateSign(prices);
+
+        } catch (CalculationError | RuntimeException e) {
+            getLogger().warning(String.format("Shop sign(%s,%d,%d,%d) updating fail: %s",
+                    shop.getWorldName(), shop.getX(), shop.getY(), shop.getZ(), e.getMessage()));
+
+        } catch (Throwable e) {
+            getLogger().log(Level.SEVERE, String.format("Shop sign(%s,%d,%d,%d) updating fail: %s",
+                    shop.getWorldName(), shop.getX(), shop.getY(), shop.getZ(), e.getMessage()), e);
+        }
+    }
 
 
     public void scheduleSave() {

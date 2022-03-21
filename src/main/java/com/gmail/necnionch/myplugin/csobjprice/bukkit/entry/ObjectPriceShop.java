@@ -2,20 +2,22 @@ package com.gmail.necnionch.myplugin.csobjprice.bukkit.entry;
 
 import com.Acrobot.Breeze.Utils.PriceUtil;
 import com.Acrobot.ChestShop.Signs.ChestShopSign;
+import com.Acrobot.ChestShop.Utils.uBlock;
 import com.gmail.necnionch.myplugin.csobjprice.common.Utils;
-import net.objecthunter.exp4j.Expression;
-import net.objecthunter.exp4j.ExpressionBuilder;
 import org.bukkit.Bukkit;
-import org.bukkit.Chunk;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.Container;
 import org.bukkit.block.Sign;
 import org.bukkit.configuration.ConfigurationSection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 import static com.gmail.necnionch.myplugin.csobjprice.bukkit.ObjectPricePlugin.debug;
 import static com.gmail.necnionch.myplugin.csobjprice.bukkit.ObjectPricePlugin.getShops;
@@ -230,6 +232,23 @@ public class ObjectPriceShop {
         debug("-> updated (%s,%d,%d,%d / chunkAt %d, %d) buy=%f, sell=%f",
                 worldName, x, y, z, getChunkX(), getChunkZ(), buyPrice, sellPrice);
         return true;
+    }
+
+    @Nullable
+    public Sign getShopSign() {
+        World world = Bukkit.getWorld(worldName);
+        if (world == null || !world.isChunkLoaded(getChunkX(), getChunkZ()))
+            return null;
+        Block block = world.getBlockAt(x, y, z);
+        if (!ChestShopSign.isValid(block) || !(block.getState() instanceof Sign))
+            return null;
+        return (Sign) block.getState();
+    }
+
+    @Nullable
+    public Container getShopContainer() {
+        Sign sign = getShopSign();
+        return (sign != null) ? uBlock.findConnectedContainer(sign) : null;
     }
 
 
