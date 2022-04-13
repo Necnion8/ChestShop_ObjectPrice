@@ -31,6 +31,9 @@ public class ContainerEventListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onInventory(InventoryCloseEvent event) {
         Location invLocation = event.getInventory().getLocation();
+        if (invLocation == null)
+            return;
+
         Block invBlock = invLocation.getBlock();
 
         if (invBlock == null || !(invBlock.getState() instanceof Container))
